@@ -100,6 +100,32 @@ async def webhook(request: Request):
                     },
                 },
             )
+        
+        # ✅ Выбор отдела
+        elif action.startswith("otdel_"):
+            parts = action.split("_")
+            otdel_value = parts[1]
+            schet_value = parts[2]
+            operacia_type = parts[3]
+
+            operacia_text = "Доход" if operacia_type == "income" else "Расход"
+
+            requests.post(
+                f"{TELEGRAM_API}/sendMessage",
+                json={
+                    "chat_id": chat_id,
+                    "text": f"Счёт: {schet_value}\n"
+                            f"Операция: {operacia_text}\n"
+                            f"Отдел: {otdel_value}\n\n"
+                            f"Выберите статью:",
+                    "reply_markup": {
+                        "inline_keyboard": [
+                            [{"text": "ГСМ", "callback_data": f"state_GSM_{schet_value}_{operacia_type}_{otdel_value}"}],
+                            [{"text": "ЗП", "callback_data": f"state_ZP_{schet_value}_{operacia_type}_{otdel_value}"}],
+                        ]
+                    },
+                },
+            )
 
         return {"ok": True}
 
