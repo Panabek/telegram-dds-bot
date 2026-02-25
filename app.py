@@ -5,7 +5,6 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
 app = FastAPI()
-temp_storage = {}
 
 # ====== НАСТРОЙКИ ======
 SPREADSHEET_ID = "1FpFdW7vrl_RJjSTRJm5dSI5gBWzZD3SwhPAot428BOU"
@@ -38,18 +37,30 @@ BOT_TOKEN = os.environ["TELEGRAM_TOKEN"]
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
 
+temp_storage = {}
+
+def build_keyboard(items, prefix):
+    keyboard = []
+    for i, item in enumerate(items):
+        keyboard.append([{
+            "text": item,
+            "callback_data": f"{prefix}|{i}"
+        }])
+    return {"inline_keyboard": keyboard}
+
+
 @app.post("/")
 async def webhook(request: Request):
     data = await request.json()
 
-    # 1️⃣ Обработка нажатия кнопки
+    # ================= CALLBACK =================
     if "callback_query" in data:
         callback = data["callback_query"]
         chat_id = callback["message"]["chat"]["id"]
         callback_id = callback["id"]
         action = callback["data"]
 
-        # Убираем "часики"
+        # убираем "часики"
         requests.post(
             f"{TELEGRAM_API}/answerCallbackQuery",
             json={"callback_query_id": callback_id},
@@ -59,128 +70,103 @@ async def webhook(request: Request):
         if action == "add_operation":
             accounts = get_reference("Справочник_Счета")
 
-            keyboard = []
-            for acc in accounts:
-                keyboard.append([{
-                    "text": acc,
-                    "callback_data": f"schet|{acc}"
-                }])
+            temp_storage[chat_id] = {"accounts": accounts}
 
             requests.post(
                 f"{TELEGRAM_API}/sendMessage",
                 json={
                     "chat_id": chat_id,
                     "text": "Выберите счёт:",
-                    "reply_markup": {
-                        "inline_keyboard": keyboard
-                    },
+                    "reply_markup": build_keyboard(accounts, "schet")
                 },
             )
 
-        # ✅ Выбор счёта
+        # ===== СЧЁТ =====
         elif action.startswith("schet|"):
-            schet_value = action.replace("schet|", "")
+            index = int(action.split("|")[1])
+            accounts = temp_storage[chat_id]["accounts"]
+            schet_value = accounts[index]
 
             operations = get_reference("Справочник_Операции")
 
-            keyboard = []
-            for op in operations:
-                keyboard.append([{
-                    "text": op,
-                    "callback_data": f"operacia|{op}|{schet_value}"
-                }])
+            temp_storage[chat_id].update({
+                "schet": schet_value,
+                "operations": operations
+            })
 
             requests.post(
                 f"{TELEGRAM_API}/sendMessage",
                 json={
                     "chat_id": chat_id,
-                    "text": f"Счёт {schet_value} выбран.\nТеперь выберите операцию:",
-                    "reply_markup": {
-                        "inline_keyboard": keyboard
-                    },
+                    "text": f"Счёт: {schet_value}\nВыберите операцию:",
+                    "reply_markup": build_keyboard(operations, "operacia")
                 },
             )
-        
-        # ✅ Выбор операции
+
+        # ===== ОПЕРАЦИЯ =====
         elif action.startswith("operacia|"):
-            parts = action.split("|")
-            operacia_text = parts[1]
-            schet_value = parts[2]
+            index = int(action.split("|")[1])
+            operations = temp_storage[chat_id]["operations"]
+            operacia_value = operations[index]
 
             departments = get_reference("Справочник_Отделы")
 
-            keyboard = []
-            for dept in departments:
-                keyboard.append([{
-                    "text": dept,
-                    "callback_data": f"otdel|{dept}|{schet_value}|{operacia_text}"
-                }])
+            temp_storage[chat_id].update({
+                "operacia": operacia_value,
+                "departments": departments
+            })
 
             requests.post(
                 f"{TELEGRAM_API}/sendMessage",
                 json={
                     "chat_id": chat_id,
-                    "text": f"Счёт: {schet_value}\n"
-                            f"Операция: {operacia_text}\n\n"
-                            f"Выберите отдел/проект:",
-                    "reply_markup": {
-                        "inline_keyboard": keyboard
-                    },
+                    "text": f"Счёт: {temp_storage[chat_id]['schet']}\n"
+                            f"Операция: {operacia_value}\n\n"
+                            f"Выберите отдел:",
+                    "reply_markup": build_keyboard(departments, "otdel")
                 },
             )
-        
-        # ✅ Выбор отдела
+
+        # ===== ОТДЕЛ =====
         elif action.startswith("otdel|"):
-            parts = action.split("|")
-            otdel_value = parts[1]
-            schet_value = parts[2]
-            operacia_text = parts[3]
+            index = int(action.split("|")[1])
+            departments = temp_storage[chat_id]["departments"]
+            otdel_value = departments[index]
 
             articles = get_reference("Справочник_Статьи")
 
-            keyboard = []
-            for art in articles:
-                keyboard.append([{
-                    "text": art,
-                    "callback_data": f"state|{art}|{schet_value}|{operacia_text}|{otdel_value}"
-                }])
+            temp_storage[chat_id].update({
+                "otdel": otdel_value,
+                "articles": articles
+            })
 
             requests.post(
                 f"{TELEGRAM_API}/sendMessage",
                 json={
                     "chat_id": chat_id,
-                    "text": f"Счёт: {schet_value}\n"
-                            f"Операция: {operacia_text}\n"
+                    "text": f"Счёт: {temp_storage[chat_id]['schet']}\n"
+                            f"Операция: {temp_storage[chat_id]['operacia']}\n"
                             f"Отдел: {otdel_value}\n\n"
                             f"Выберите статью:",
-                    "reply_markup": {
-                        "inline_keyboard": keyboard
-                    },
+                    "reply_markup": build_keyboard(articles, "state")
                 },
             )
-            
-        # ✅ Выбор статьи
+
+        # ===== СТАТЬЯ =====
         elif action.startswith("state|"):
-            parts = action.split("|")
-            state_value = parts[1]
-            schet_value = parts[2]
-            otdel_value = parts[4]
-            operacia_text = parts[3]
-            
-            temp_storage[chat_id] = {
-                "schet": schet_value,
-                "operacia": operacia_text,
-                "otdel": otdel_value,
-                "state": state_value
-            }
+            index = int(action.split("|")[1])
+            articles = temp_storage[chat_id]["articles"]
+            state_value = articles[index]
+
+            temp_storage[chat_id]["state"] = state_value
 
             requests.post(
                 f"{TELEGRAM_API}/sendMessage",
                 json={
                     "chat_id": chat_id,
-                    "text": f"Счёт: {schet_value}\n"
-                            f"Операция: {operacia_text}\n"
-                            f"Отдел: {otdel_value}\n"
+                    "text": f"Счёт: {temp_storage[chat_id]['schet']}\n"
+                            f"Операция: {temp_storage[chat_id]['operacia']}\n"
+                            f"Отдел: {temp_storage[chat_id]['otdel']}\n"
                             f"Статья: {state_value}\n\n"
                             f"Введите сумму:",
                 },
@@ -188,12 +174,12 @@ async def webhook(request: Request):
 
         return {"ok": True}
 
-    # 2️⃣ Обработка команды /start
+    # ================= MESSAGE =================
     if "message" in data:
         chat_id = data["message"]["chat"]["id"]
         text = data["message"].get("text", "")
 
-        # Если пользователь вводит сумму
+        # сумма
         if chat_id in temp_storage and "summa" not in temp_storage[chat_id]:
             try:
                 amount = float(text.replace(",", "."))
@@ -216,21 +202,19 @@ async def webhook(request: Request):
                     "text": "Введите комментарий:",
                 },
             )
-
             return {"ok": True}
 
-        # Если пользователь вводит комментарий
+        # комментарий
         if chat_id in temp_storage and "summa" in temp_storage[chat_id]:
             comment = text
-
-            data_row = temp_storage[chat_id]
+            row = temp_storage[chat_id]
 
             values = [[
-                data_row["schet"],
-                data_row["operacia"],
-                data_row["otdel"],
-                data_row["state"],
-                data_row["summa"],
+                row["schet"],
+                row["operacia"],
+                row["otdel"],
+                row["state"],
+                row["summa"],
                 comment
             ]]
 
@@ -245,15 +229,14 @@ async def webhook(request: Request):
                 f"{TELEGRAM_API}/sendMessage",
                 json={
                     "chat_id": chat_id,
-                    "text": "✅ Операция успешно сохранена.",
+                    "text": "✅ Операция сохранена.",
                 },
             )
 
             del temp_storage[chat_id]
-
             return {"ok": True}
 
-        # Команда старт
+        # старт
         if text == "/start":
             keyboard = {
                 "inline_keyboard": [
