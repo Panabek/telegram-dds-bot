@@ -170,6 +170,68 @@ async def webhook(request: Request):
         chat_id = data["message"]["chat"]["id"]
         text = data["message"].get("text", "")
 
+        # Если пользователь вводит сумму
+        global temp_storage
+        if 'temp_storage' in globals() and chat_id in temp_storage and "summa" not in temp_storage[chat_id]:
+            try:
+                amount = float(text.replace(",", "."))
+            except:
+                requests.post(
+                    f"{TELEGRAM_API}/sendMessage",
+                    json={
+                        "chat_id": chat_id,
+                        "text": "Введите корректную сумму числом:",
+                    },
+                )
+                return {"ok": True}
+
+            temp_storage[chat_id]["summa"] = amount
+
+            requests.post(
+                f"{TELEGRAM_API}/sendMessage",
+                json={
+                    "chat_id": chat_id,
+                    "text": "Введите комментарий:",
+                },
+            )
+
+            return {"ok": True}
+
+        # Если пользователь вводит комментарий
+        if 'temp_storage' in globals() and chat_id in temp_storage and "summa" in temp_storage[chat_id]:
+            comment = text
+
+            data_row = temp_storage[chat_id]
+
+            values = [[
+                data_row["schet"],
+                data_row["operacia"],
+                data_row["otdel"],
+                data_row["state"],
+                data_row["summa"],
+                comment
+            ]]
+
+            service.spreadsheets().values().append(
+                spreadsheetId=SPREADSHEET_ID,
+                range=SHEET_NAME,
+                valueInputOption="RAW",
+                body={"values": values},
+            ).execute()
+
+            requests.post(
+                f"{TELEGRAM_API}/sendMessage",
+                json={
+                    "chat_id": chat_id,
+                    "text": "✅ Операция успешно сохранена.",
+                },
+            )
+
+            del temp_storage[chat_id]
+
+            return {"ok": True}
+
+        # Команда старт
         if text == "/start":
             keyboard = {
                 "inline_keyboard": [
