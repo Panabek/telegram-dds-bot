@@ -25,6 +25,15 @@ credentials = service_account.Credentials.from_service_account_info(
 
 service = build("sheets", "v4", credentials=credentials)
 
+def get_reference(sheet_name):
+    result = service.spreadsheets().values().get(
+        spreadsheetId=SPREADSHEET_ID,
+        range=f"{sheet_name}!A:A"
+    ).execute()
+
+    values = result.get("values", [])
+    return [row[0] for row in values if row]
+
 BOT_TOKEN = os.environ["TELEGRAM_TOKEN"]
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
