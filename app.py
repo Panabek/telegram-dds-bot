@@ -6,8 +6,8 @@ from googleapiclient.discovery import build
 app = FastAPI()
 
 # ====== НАСТРОЙКИ ======
-SPREADSHEET_ID = "ВСТАВЬ_ID_ТАБЛИЦЫ"
-SHEET_NAME = "Лист1"
+SPREADSHEET_ID = "1FpFdW7vrl_RJjSTRJm5dSI5gBWzZD3SwhPAot428BOU"
+SHEET_NAME = "Лист15"
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
