@@ -1,5 +1,6 @@
 import os
 import requests
+from datetime import datetime, timedelta
 from fastapi import FastAPI, Request
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -36,7 +37,6 @@ def get_reference(sheet_name):
 BOT_TOKEN = os.environ["TELEGRAM_TOKEN"]
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
-
 temp_storage = {}
 
 def build_keyboard(items, prefix):
@@ -60,16 +60,14 @@ async def webhook(request: Request):
         callback_id = callback["id"]
         action = callback["data"]
 
-        # убираем "часики"
         requests.post(
             f"{TELEGRAM_API}/answerCallbackQuery",
             json={"callback_query_id": callback_id},
         )
 
-        # ➕ Добавить операцию
+        # ===== СТАРТ ДОБАВЛЕНИЯ =====
         if action == "add_operation":
             accounts = get_reference("Справочник_Счета")
-
             temp_storage[chat_id] = {"accounts": accounts}
 
             requests.post(
@@ -84,8 +82,7 @@ async def webhook(request: Request):
         # ===== СЧЁТ =====
         elif action.startswith("schet|"):
             index = int(action.split("|")[1])
-            accounts = temp_storage[chat_id]["accounts"]
-            schet_value = accounts[index]
+            schet_value = temp_storage[chat_id]["accounts"][index]
 
             operations = get_reference("Справочник_Операции")
 
@@ -106,15 +103,24 @@ async def webhook(request: Request):
         # ===== ОПЕРАЦИЯ =====
         elif action.startswith("operacia|"):
             index = int(action.split("|")[1])
-            operations = temp_storage[chat_id]["operations"]
-            operacia_value = operations[index]
+            operacia_value = temp_storage[chat_id]["operations"][index]
 
-            departments = get_reference("Справочник_Отделы")
+            today = datetime.now().strftime("%Y-%m-%d")
+            yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
 
             temp_storage[chat_id].update({
                 "operacia": operacia_value,
-                "departments": departments
+                "today": today,
+                "yesterday": yesterday
             })
+
+            keyboard = {
+                "inline_keyboard": [
+                    [{"text": f"Сегодня ({today})", "callback_data": "date|today"}],
+                    [{"text": f"Вчера ({yesterday})", "callback_data": "date|yesterday"}],
+                    [{"text": "Ввести вручную", "callback_data": "date|manual"}],
+                ]
+            }
 
             requests.post(
                 f"{TELEGRAM_API}/sendMessage",
@@ -122,7 +128,41 @@ async def webhook(request: Request):
                     "chat_id": chat_id,
                     "text": f"Счёт: {temp_storage[chat_id]['schet']}\n"
                             f"Операция: {operacia_value}\n\n"
-                            f"Выберите отдел:",
+                            f"Выберите дату:",
+                    "reply_markup": keyboard
+                },
+            )
+
+        # ===== ДАТА =====
+        elif action.startswith("date|"):
+            choice = action.split("|")[1]
+
+            if choice == "today":
+                selected_date = temp_storage[chat_id]["today"]
+            elif choice == "yesterday":
+                selected_date = temp_storage[chat_id]["yesterday"]
+            else:
+                temp_storage[chat_id]["awaiting_manual_date"] = True
+
+                requests.post(
+                    f"{TELEGRAM_API}/sendMessage",
+                    json={
+                        "chat_id": chat_id,
+                        "text": "Введите дату в формате YYYY-MM-DD:",
+                    },
+                )
+                return {"ok": True}
+
+            temp_storage[chat_id]["date"] = selected_date
+
+            departments = get_reference("Справочник_Отделы")
+            temp_storage[chat_id]["departments"] = departments
+
+            requests.post(
+                f"{TELEGRAM_API}/sendMessage",
+                json={
+                    "chat_id": chat_id,
+                    "text": f"Дата: {selected_date}\n\nВыберите отдел:",
                     "reply_markup": build_keyboard(departments, "otdel")
                 },
             )
@@ -130,8 +170,7 @@ async def webhook(request: Request):
         # ===== ОТДЕЛ =====
         elif action.startswith("otdel|"):
             index = int(action.split("|")[1])
-            departments = temp_storage[chat_id]["departments"]
-            otdel_value = departments[index]
+            otdel_value = temp_storage[chat_id]["departments"][index]
 
             articles = get_reference("Справочник_Статьи")
 
@@ -146,6 +185,7 @@ async def webhook(request: Request):
                     "chat_id": chat_id,
                     "text": f"Счёт: {temp_storage[chat_id]['schet']}\n"
                             f"Операция: {temp_storage[chat_id]['operacia']}\n"
+                            f"Дата: {temp_storage[chat_id]['date']}\n"
                             f"Отдел: {otdel_value}\n\n"
                             f"Выберите статью:",
                     "reply_markup": build_keyboard(articles, "state")
@@ -155,8 +195,7 @@ async def webhook(request: Request):
         # ===== СТАТЬЯ =====
         elif action.startswith("state|"):
             index = int(action.split("|")[1])
-            articles = temp_storage[chat_id]["articles"]
-            state_value = articles[index]
+            state_value = temp_storage[chat_id]["articles"][index]
 
             temp_storage[chat_id]["state"] = state_value
 
@@ -166,6 +205,7 @@ async def webhook(request: Request):
                     "chat_id": chat_id,
                     "text": f"Счёт: {temp_storage[chat_id]['schet']}\n"
                             f"Операция: {temp_storage[chat_id]['operacia']}\n"
+                            f"Дата: {temp_storage[chat_id]['date']}\n"
                             f"Отдел: {temp_storage[chat_id]['otdel']}\n"
                             f"Статья: {state_value}\n\n"
                             f"Введите сумму:",
@@ -179,7 +219,25 @@ async def webhook(request: Request):
         chat_id = data["message"]["chat"]["id"]
         text = data["message"].get("text", "")
 
-        # сумма
+        # ===== РУЧНАЯ ДАТА =====
+        if chat_id in temp_storage and temp_storage[chat_id].get("awaiting_manual_date"):
+            temp_storage[chat_id]["date"] = text
+            temp_storage[chat_id]["awaiting_manual_date"] = False
+
+            departments = get_reference("Справочник_Отделы")
+            temp_storage[chat_id]["departments"] = departments
+
+            requests.post(
+                f"{TELEGRAM_API}/sendMessage",
+                json={
+                    "chat_id": chat_id,
+                    "text": f"Дата: {text}\n\nВыберите отдел:",
+                    "reply_markup": build_keyboard(departments, "otdel")
+                },
+            )
+            return {"ok": True}
+
+        # ===== СУММА =====
         if chat_id in temp_storage and "summa" not in temp_storage[chat_id]:
             try:
                 amount = float(text.replace(",", "."))
@@ -204,12 +262,13 @@ async def webhook(request: Request):
             )
             return {"ok": True}
 
-        # комментарий
+        # ===== КОММЕНТАРИЙ =====
         if chat_id in temp_storage and "summa" in temp_storage[chat_id]:
             comment = text
             row = temp_storage[chat_id]
 
             values = [[
+                row.get("date", ""),
                 row["schet"],
                 row["operacia"],
                 row["otdel"],
@@ -236,7 +295,7 @@ async def webhook(request: Request):
             del temp_storage[chat_id]
             return {"ok": True}
 
-        # старт
+        # ===== START =====
         if text == "/start":
             keyboard = {
                 "inline_keyboard": [
