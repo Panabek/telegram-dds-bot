@@ -1,4 +1,5 @@
 import os
+import requests
 from fastapi import FastAPI, Request
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -23,25 +24,35 @@ credentials = service_account.Credentials.from_service_account_info(
 
 service = build("sheets", "v4", credentials=credentials)
 
+BOT_TOKEN = os.environ["TELEGRAM_TOKEN"]
+TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
+
 
 @app.post("/")
 async def webhook(request: Request):
     data = await request.json()
 
-    if "message" not in data:
+    # Обработка обычного сообщения
+    if "message" in data:
+        chat_id = data["message"]["chat"]["id"]
+        text = data["message"].get("text", "")
+
+        if text == "/start":
+            keyboard = {
+                "inline_keyboard": [
+                    [{"text": "➕ Добавить операцию", "callback_data": "add_operation"}]
+                ]
+            }
+
+            requests.post(
+                f"{TELEGRAM_API}/sendMessage",
+                json={
+                    "chat_id": chat_id,
+                    "text": "Выберите действие:",
+                    "reply_markup": keyboard
+                },
+            )
+
         return {"ok": True}
-
-    text = data["message"].get("text", "")
-    user = data["message"]["from"].get("username", "")
-    update_id = data.get("update_id")
-
-    values = [[update_id, user, text]]
-
-    service.spreadsheets().values().append(
-        spreadsheetId=SPREADSHEET_ID,
-        range=SHEET_NAME,
-        valueInputOption="RAW",
-        body={"values": values},
-    ).execute()
 
     return {"ok": True}
