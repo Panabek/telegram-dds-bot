@@ -126,6 +126,42 @@ async def webhook(request: Request):
                     },
                 },
             )
+            
+        # ✅ Выбор статьи
+        elif action.startswith("state_"):
+            parts = action.split("_")
+            state_value = parts[1]
+            schet_value = parts[2]
+            operacia_type = parts[3]
+            otdel_value = parts[4]
+
+            operacia_text = "Доход" if operacia_type == "income" else "Расход"
+
+            # Сохраняем данные временно в памяти
+            global temp_storage
+            try:
+                temp_storage
+            except:
+                temp_storage = {}
+
+            temp_storage[chat_id] = {
+                "schet": schet_value,
+                "operacia": operacia_text,
+                "otdel": otdel_value,
+                "state": state_value
+            }
+
+            requests.post(
+                f"{TELEGRAM_API}/sendMessage",
+                json={
+                    "chat_id": chat_id,
+                    "text": f"Счёт: {schet_value}\n"
+                            f"Операция: {operacia_text}\n"
+                            f"Отдел: {otdel_value}\n"
+                            f"Статья: {state_value}\n\n"
+                            f"Введите сумму:",
+                },
+            )
 
         return {"ok": True}
 
