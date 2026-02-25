@@ -32,7 +32,37 @@ TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
 async def webhook(request: Request):
     data = await request.json()
 
-    # Обработка обычного сообщения
+    # 1️⃣ Обработка нажатия кнопки
+    if "callback_query" in data:
+        callback = data["callback_query"]
+        chat_id = callback["message"]["chat"]["id"]
+        callback_id = callback["id"]
+        action = callback["data"]
+
+        # Убираем "часики" у кнопки
+        requests.post(
+            f"{TELEGRAM_API}/answerCallbackQuery",
+            json={"callback_query_id": callback_id},
+        )
+
+        if action == "add_operation":
+            requests.post(
+                f"{TELEGRAM_API}/sendMessage",
+                json={
+                    "chat_id": chat_id,
+                    "text": "Выберите счёт:",
+                    "reply_markup": {
+                        "inline_keyboard": [
+                            [{"text": "1010", "callback_data": "schet_1010"}],
+                            [{"text": "1030", "callback_data": "schet_1030"}],
+                        ]
+                    },
+                },
+            )
+
+        return {"ok": True}
+
+    # 2️⃣ Обработка команды /start
     if "message" in data:
         chat_id = data["message"]["chat"]["id"]
         text = data["message"].get("text", "")
