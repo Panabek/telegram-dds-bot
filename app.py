@@ -57,16 +57,22 @@ async def webhook(request: Request):
 
         # ➕ Добавить операцию
         if action == "add_operation":
+            accounts = get_reference("Справочник_Счета")
+
+            keyboard = []
+            for acc in accounts:
+                keyboard.append([{
+                    "text": acc,
+                    "callback_data": f"schet_{acc}"
+                }])
+
             requests.post(
                 f"{TELEGRAM_API}/sendMessage",
                 json={
                     "chat_id": chat_id,
                     "text": "Выберите счёт:",
                     "reply_markup": {
-                        "inline_keyboard": [
-                            [{"text": "1010", "callback_data": "schet_1010"}],
-                            [{"text": "1030", "callback_data": "schet_1030"}],
-                        ]
+                        "inline_keyboard": keyboard
                     },
                 },
             )
@@ -75,16 +81,23 @@ async def webhook(request: Request):
         elif action.startswith("schet_"):
             schet_value = action.replace("schet_", "")
 
+            operations = get_reference("Справочник_Операции")
+
+            keyboard = []
+            for op in operations:
+                op_key = "income" if op.lower() == "доход" else "expense"
+                keyboard.append([{
+                    "text": op,
+                    "callback_data": f"operacia_{op_key}_{schet_value}"
+                }])
+
             requests.post(
                 f"{TELEGRAM_API}/sendMessage",
                 json={
                     "chat_id": chat_id,
                     "text": f"Счёт {schet_value} выбран.\nТеперь выберите операцию:",
                     "reply_markup": {
-                        "inline_keyboard": [
-                            [{"text": "Доход", "callback_data": f"operacia_income_{schet_value}"}],
-                            [{"text": "Расход", "callback_data": f"operacia_expense_{schet_value}"}],
-                        ]
+                        "inline_keyboard": keyboard
                     },
                 },
             )
@@ -92,21 +105,29 @@ async def webhook(request: Request):
         # ✅ Выбор операции
         elif action.startswith("operacia_"):
             parts = action.split("_")
-            operacia_type = parts[1]      # income / expense
+            operacia_type = parts[1]
             schet_value = parts[2]
 
             operacia_text = "Доход" if operacia_type == "income" else "Расход"
+
+            departments = get_reference("Справочник_Отделы")
+
+            keyboard = []
+            for dept in departments:
+                keyboard.append([{
+                    "text": dept,
+                    "callback_data": f"otdel_{dept}_{schet_value}_{operacia_type}"
+                }])
 
             requests.post(
                 f"{TELEGRAM_API}/sendMessage",
                 json={
                     "chat_id": chat_id,
-                    "text": f"Счёт: {schet_value}\nОперация: {operacia_text}\n\nВыберите отдел/проект:",
+                    "text": f"Счёт: {schet_value}\n"
+                            f"Операция: {operacia_text}\n\n"
+                            f"Выберите отдел/проект:",
                     "reply_markup": {
-                        "inline_keyboard": [
-                            [{"text": "Проект А", "callback_data": f"otdel_A_{schet_value}_{operacia_type}"}],
-                            [{"text": "Проект B", "callback_data": f"otdel_B_{schet_value}_{operacia_type}"}],
-                        ]
+                        "inline_keyboard": keyboard
                     },
                 },
             )
@@ -120,6 +141,15 @@ async def webhook(request: Request):
 
             operacia_text = "Доход" if operacia_type == "income" else "Расход"
 
+            articles = get_reference("Справочник_Статьи")
+
+            keyboard = []
+            for art in articles:
+                keyboard.append([{
+                    "text": art,
+                    "callback_data": f"state_{art}_{schet_value}_{operacia_type}_{otdel_value}"
+                }])
+
             requests.post(
                 f"{TELEGRAM_API}/sendMessage",
                 json={
@@ -129,10 +159,7 @@ async def webhook(request: Request):
                             f"Отдел: {otdel_value}\n\n"
                             f"Выберите статью:",
                     "reply_markup": {
-                        "inline_keyboard": [
-                            [{"text": "ГСМ", "callback_data": f"state_GSM_{schet_value}_{operacia_type}_{otdel_value}"}],
-                            [{"text": "ЗП", "callback_data": f"state_ZP_{schet_value}_{operacia_type}_{otdel_value}"}],
-                        ]
+                        "inline_keyboard": keyboard
                     },
                 },
             )
