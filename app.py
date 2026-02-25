@@ -5,6 +5,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
 app = FastAPI()
+temp_storage = {}
 
 # ====== НАСТРОЙКИ ======
 SPREADSHEET_ID = "1FpFdW7vrl_RJjSTRJm5dSI5gBWzZD3SwhPAot428BOU"
@@ -171,8 +172,7 @@ async def webhook(request: Request):
         text = data["message"].get("text", "")
 
         # Если пользователь вводит сумму
-        global temp_storage
-        if 'temp_storage' in globals() and chat_id in temp_storage and "summa" not in temp_storage[chat_id]:
+        if chat_id in temp_storage and "summa" not in temp_storage[chat_id]:
             try:
                 amount = float(text.replace(",", "."))
             except:
@@ -198,7 +198,7 @@ async def webhook(request: Request):
             return {"ok": True}
 
         # Если пользователь вводит комментарий
-        if 'temp_storage' in globals() and chat_id in temp_storage and "summa" in temp_storage[chat_id]:
+        if chat_id in temp_storage and "summa" in temp_storage[chat_id]:
             comment = text
 
             data_row = temp_storage[chat_id]
