@@ -11,8 +11,13 @@ SHEET_NAME = "Лист1"
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
-credentials = service_account.Credentials.from_service_account_file(
-    "credentials.json",
+import json
+import os
+
+creds_dict = json.loads(os.environ["GOOGLE_CREDENTIALS"])
+
+credentials = service_account.Credentials.from_service_account_info(
+    creds_dict,
     scopes=SCOPES,
 )
 
