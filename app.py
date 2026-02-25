@@ -39,12 +39,13 @@ async def webhook(request: Request):
         callback_id = callback["id"]
         action = callback["data"]
 
-        # Убираем "часики" у кнопки
+        # Убираем "часики"
         requests.post(
             f"{TELEGRAM_API}/answerCallbackQuery",
             json={"callback_query_id": callback_id},
         )
 
+        # ➕ Добавить операцию
         if action == "add_operation":
             requests.post(
                 f"{TELEGRAM_API}/sendMessage",
@@ -55,6 +56,24 @@ async def webhook(request: Request):
                         "inline_keyboard": [
                             [{"text": "1010", "callback_data": "schet_1010"}],
                             [{"text": "1030", "callback_data": "schet_1030"}],
+                        ]
+                    },
+                },
+            )
+
+        # ✅ Выбор счёта
+        elif action.startswith("schet_"):
+            schet_value = action.replace("schet_", "")
+
+            requests.post(
+                f"{TELEGRAM_API}/sendMessage",
+                json={
+                    "chat_id": chat_id,
+                    "text": f"Счёт {schet_value} выбран.\nТеперь выберите операцию:",
+                    "reply_markup": {
+                        "inline_keyboard": [
+                            [{"text": "Доход", "callback_data": f"operacia_income_{schet_value}"}],
+                            [{"text": "Расход", "callback_data": f"operacia_expense_{schet_value}"}],
                         ]
                     },
                 },
