@@ -88,7 +88,7 @@ async def webhook(request: Request):
                 op_key = "income" if op.lower() == "доход" else "expense"
                 keyboard.append([{
                     "text": op,
-                    "callback_data": f"operacia_{op_key}_{schet_value}"
+                    "callback_data": f"operacia|{op_key}|{schet_value}"
                 }])
 
             requests.post(
@@ -173,14 +173,7 @@ async def webhook(request: Request):
             otdel_value = parts[4]
 
             operacia_text = "Доход" if operacia_type == "income" else "Расход"
-
-            # Сохраняем данные временно в памяти
-            global temp_storage
-            try:
-                temp_storage
-            except:
-                temp_storage = {}
-
+            
             temp_storage[chat_id] = {
                 "schet": schet_value,
                 "operacia": operacia_text,
