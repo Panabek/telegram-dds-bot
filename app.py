@@ -268,9 +268,9 @@ async def webhook(request: Request):
             row = temp_storage[chat_id]
 
             values = [[
-                row.get("date", ""),
                 row["schet"],
                 row["operacia"],
+                row.get("date", ""),
                 row["otdel"],
                 row["state"],
                 row["summa"],
