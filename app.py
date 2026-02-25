@@ -142,7 +142,7 @@ async def webhook(request: Request):
             for art in articles:
                 keyboard.append([{
                     "text": art,
-                    "callback_data": f"state|{art}|{schet_value}|{operacia_type}|{otdel_value}"
+                    "callback_data": f"state|{art}|{schet_value}|{operacia_text}|{otdel_value}"
                 }])
 
             requests.post(
