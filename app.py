@@ -63,7 +63,7 @@ async def webhook(request: Request):
             for acc in accounts:
                 keyboard.append([{
                     "text": acc,
-                    "callback_data": f"schet_{acc}"
+                    "callback_data": f"schet|{acc}"
                 }])
 
             requests.post(
@@ -78,8 +78,8 @@ async def webhook(request: Request):
             )
 
         # ✅ Выбор счёта
-        elif action.startswith("schet_"):
-            schet_value = action.replace("schet_", "")
+        elif action.startswith("schet|"):
+            schet_value = action.replace("schet|", "")
 
             operations = get_reference("Справочник_Операции")
 
@@ -103,8 +103,8 @@ async def webhook(request: Request):
             )
         
         # ✅ Выбор операции
-        elif action.startswith("operacia_"):
-            parts = action.split("_")
+        elif action.startswith("operacia|"):
+            parts = action.split("|")
             operacia_type = parts[1]
             schet_value = parts[2]
 
@@ -116,7 +116,7 @@ async def webhook(request: Request):
             for dept in departments:
                 keyboard.append([{
                     "text": dept,
-                    "callback_data": f"otdel_{dept}_{schet_value}_{operacia_type}"
+                    "callback_data": f"otdel|{dept}|{schet_value}|{operacia_type}"
                 }])
 
             requests.post(
@@ -133,8 +133,8 @@ async def webhook(request: Request):
             )
         
         # ✅ Выбор отдела
-        elif action.startswith("otdel_"):
-            parts = action.split("_")
+        elif action.startswith("otdel|"):
+            parts = action.split("|")
             otdel_value = parts[1]
             schet_value = parts[2]
             operacia_type = parts[3]
@@ -147,7 +147,7 @@ async def webhook(request: Request):
             for art in articles:
                 keyboard.append([{
                     "text": art,
-                    "callback_data": f"state_{art}_{schet_value}_{operacia_type}_{otdel_value}"
+                    "callback_data": f"state|{art}|{schet_value}|{operacia_type}|{otdel_value}"
                 }])
 
             requests.post(
@@ -165,8 +165,8 @@ async def webhook(request: Request):
             )
             
         # ✅ Выбор статьи
-        elif action.startswith("state_"):
-            parts = action.split("_")
+        elif action.startswith("state|"):
+            parts = action.split("|")
             state_value = parts[1]
             schet_value = parts[2]
             operacia_type = parts[3]
