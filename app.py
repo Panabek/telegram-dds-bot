@@ -85,10 +85,9 @@ async def webhook(request: Request):
 
             keyboard = []
             for op in operations:
-                op_key = "income" if op.lower() == "доход" else "expense"
                 keyboard.append([{
                     "text": op,
-                    "callback_data": f"operacia|{op_key}|{schet_value}"
+                    "callback_data": f"operacia|{op}|{schet_value}"
                 }])
 
             requests.post(
@@ -105,10 +104,8 @@ async def webhook(request: Request):
         # ✅ Выбор операции
         elif action.startswith("operacia|"):
             parts = action.split("|")
-            operacia_type = parts[1]
+            operacia_text = parts[1]
             schet_value = parts[2]
-
-            operacia_text = "Доход" if operacia_type == "income" else "Расход"
 
             departments = get_reference("Справочник_Отделы")
 
@@ -116,7 +113,7 @@ async def webhook(request: Request):
             for dept in departments:
                 keyboard.append([{
                     "text": dept,
-                    "callback_data": f"otdel|{dept}|{schet_value}|{operacia_type}"
+                    "callback_data": f"otdel|{dept}|{schet_value}|{operacia_text}"
                 }])
 
             requests.post(
@@ -137,9 +134,7 @@ async def webhook(request: Request):
             parts = action.split("|")
             otdel_value = parts[1]
             schet_value = parts[2]
-            operacia_type = parts[3]
-
-            operacia_text = "Доход" if operacia_type == "income" else "Расход"
+            operacia_text = parts[3]
 
             articles = get_reference("Справочник_Статьи")
 
@@ -169,10 +164,8 @@ async def webhook(request: Request):
             parts = action.split("|")
             state_value = parts[1]
             schet_value = parts[2]
-            operacia_type = parts[3]
             otdel_value = parts[4]
-
-            operacia_text = "Доход" if operacia_type == "income" else "Расход"
+            operacia_text = parts[3]
             
             temp_storage[chat_id] = {
                 "schet": schet_value,
