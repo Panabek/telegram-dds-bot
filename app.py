@@ -219,6 +219,11 @@ async def webhook(request: Request):
         chat_id = data["message"]["chat"]["id"]
         text = data["message"].get("text", "")
 
+        user = data["message"]["from"]
+        username = user.get("username")
+        first_name = user.get("first_name", "")
+        last_name = user.get("last_name", "")
+
         # ===== РУЧНАЯ ДАТА =====
         if chat_id in temp_storage and temp_storage[chat_id].get("awaiting_manual_date"):
             temp_storage[chat_id]["date"] = text
@@ -267,6 +272,9 @@ async def webhook(request: Request):
             comment = text
             row = temp_storage[chat_id]
 
+            author = f"@{username}" if username else f"{first_name} {last_name}"
+            row["author"] = author
+
             values = [[
                 row["schet"],
                 row["operacia"],
@@ -300,6 +308,7 @@ async def webhook(request: Request):
                     "chat_id": group_id,
                     "text": f"""
             📌 Новая операция
+            👤 Добавил: {row["author"]}
 
             💳 Счёт: {row["schet"]}
             📊 Операция: {row["operacia"]}
