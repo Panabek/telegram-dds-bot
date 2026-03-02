@@ -214,6 +214,11 @@ async def webhook(request: Request):
 
         return {"ok": True}
 
+    if "message" in data:
+        print(data)
+
+        chat_id = data["message"]["chat"]["id"]
+
     # ================= MESSAGE =================
     if "message" in data:
         chat_id = data["message"]["chat"]["id"]
