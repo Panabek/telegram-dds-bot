@@ -214,11 +214,6 @@ async def webhook(request: Request):
 
         return {"ok": True}
 
-    if "message" in data:
-        print(data)
-
-        chat_id = data["message"]["chat"]["id"]
-
     # ================= MESSAGE =================
     if "message" in data:
         chat_id = data["message"]["chat"]["id"]
@@ -294,6 +289,26 @@ async def webhook(request: Request):
                 json={
                     "chat_id": chat_id,
                     "text": "✅ Операция сохранена.",
+                },
+            )
+
+            group_id = os.environ["GROUP_CHAT_ID"]
+
+            requests.post(
+                f"{TELEGRAM_API}/sendMessage",
+                json={
+                    "chat_id": group_id,
+                    "text": f"""
+            📌 Новая операция
+
+            💳 Счёт: {row["schet"]}
+            📊 Операция: {row["operacia"]}
+            📅 Дата: {row.get("date", "")}
+            🏢 Отдел: {row["otdel"]}
+            📂 Статья: {row["state"]}
+            💰 Сумма: {row["summa"]}
+            📝 Комментарий: {comment}
+            """,
                 },
             )
 
